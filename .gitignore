@@ -1,0 +1,22 @@
+# Compilation de l'application (se recrée avec cargo build)
+/target/
+
+# Captures d'écran de test
+/shots/
+
+# Images Docker compressées par build-images.sh (trop lourdes pour un dépôt)
+*.tar.gz
+*.tar
+
+# Python
+__pycache__/
+*.pyc
+
+# Fichiers temporaires de la page de réglages
+*.tmp
+
+# Éditeurs et systèmes
+.DS_Store
+*.swp
+.idea/
+.vscode/

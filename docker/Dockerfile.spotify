@@ -1,0 +1,38 @@
+# Spotify Connect receiver (librespot from the raspotify package) in a container.
+# Works on Raspberry Pi (arm64 / armhf) and on x86_64.
+FROM debian:trixie-slim
+
+ARG TARGETARCH
+# Where to get the raspotify package. "auto" picks the right file for the CPU.
+ARG RASPOTIFY_DEB_URL=auto
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl dbus avahi-daemon alsa-utils libasound2-plugins tini; \
+    arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
+    case "$arch" in arm) arch=armhf ;; esac; \
+    url="$RASPOTIFY_DEB_URL"; \
+    if [ "$url" = "auto" ]; then url="https://dtcooper.github.io/raspotify/raspotify-latest_${arch}.deb"; fi; \
+    curl -fsSL -o /tmp/raspotify.deb "$url"; \
+    apt-get install -y --no-install-recommends /tmp/raspotify.deb; \
+    rm -f /tmp/raspotify.deb; \
+    apt-get clean; rm -rf /var/lib/apt/lists/*; \
+    librespot --version
+
+# Avahi: no hostname publishing from the container (the host already does it),
+# only the Spotify Connect service is announced.
+RUN sed -i \
+      -e 's/^#\?publish-hinfo=.*/publish-hinfo=no/' \
+      -e 's/^#\?publish-workstation=.*/publish-workstation=no/' \
+      -e 's/^#\?publish-addresses=.*/publish-addresses=yes/' \
+      -e 's/^#\?enable-dbus=.*/enable-dbus=yes/' \
+      /etc/avahi/avahi-daemon.conf
+
+COPY entrypoint-spotify.sh /usr/local/bin/entrypoint-spotify.sh
+RUN chmod 755 /usr/local/bin/entrypoint-spotify.sh
+
+VOLUME ["/var/cache/raspotify", "/var/lib/raspotify"]
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint-spotify.sh"]

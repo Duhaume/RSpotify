@@ -1,0 +1,15 @@
+# Optional Wi-Fi access point for the Pi (hostapd + dnsmasq), so phones can
+# join the Pi's own network and see the Spotify speaker.
+FROM debian:trixie-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends hostapd dnsmasq dbus-bin iproute2 iptables iw rfkill procps tini; \
+    apt-get clean; rm -rf /var/lib/apt/lists/*
+
+COPY entrypoint-hotspot.sh /usr/local/bin/entrypoint-hotspot.sh
+RUN chmod 755 /usr/local/bin/entrypoint-hotspot.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint-hotspot.sh"]

@@ -1,0 +1,73 @@
+# Raspotify dans Docker, tout sur le Pi : l'enceinte Spotify Connect, le point d'accès
+# Wi-Fi (en option) et la page de réglages (http://<nom-du-pi>.local:8080).
+#
+# Compiler les images sur le Pi :   docker compose build
+# Démarrer :                        docker compose up -d     (ou : sudo ./install.sh)
+# Journal :                         docker compose logs -f
+# Arrêter :                         docker compose down
+#
+# Dans le même dossier : raspotify.conf (réglages du lecteur), hotspot.env (point d'accès),
+# .env (port et code de la page de réglages).
+name: raspotify
+
+services:
+  # Le lecteur Spotify Connect (librespot, du paquet raspotify).
+  spotify:
+    build:
+      context: .
+      dockerfile: Dockerfile.spotify
+      args:
+        RASPOTIFY_DEB_URL: ${RASPOTIFY_DEB_URL:-auto}
+    image: raspotify-docker/spotify:latest
+    container_name: raspotify
+    # Spotify trouve l'enceinte par zeroconf (mDNS) : il faut le réseau du Pi lui-même.
+    network_mode: host
+    restart: unless-stopped
+    devices:
+      - /dev/snd:/dev/snd
+    group_add:
+      - audio
+    environment:
+      AVAHI_MODE: ${AVAHI_MODE:-container}
+    tmpfs:
+      - /run/raspotify:mode=0700
+    volumes:
+      - ./raspotify.conf:/etc/raspotify/conf:ro
+      - spotify-cache:/var/cache/raspotify
+      - spotify-state:/var/lib/raspotify
+
+  # Le point d'accès Wi-Fi : en veille tant que AP_ENABLED=no dans hotspot.env.
+  hotspot:
+    build:
+      context: .
+      dockerfile: Dockerfile.hotspot
+    image: raspotify-docker/hotspot:latest
+    container_name: raspotify-hotspot
+    network_mode: host
+    restart: unless-stopped
+    # hostapd pilote la carte Wi-Fi et le Pi partage internet : il faut tous les droits réseau.
+    privileged: true
+    volumes:
+      - ./hotspot.env:/etc/raspotify/hotspot.env:ro
+      - /run/dbus:/run/dbus
+
+  # La page de réglages, à ouvrir depuis un navigateur : http://<nom-du-pi>.local:8080
+  reglages:
+    build:
+      context: .
+      dockerfile: Dockerfile.reglages
+    image: raspotify-docker/reglages:latest
+    container_name: raspotify-reglages
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      REGLAGES_PORT: ${REGLAGES_PORT:-8080}
+      REGLAGES_CODE: ${REGLAGES_CODE:-}
+    volumes:
+      - .:/data
+      # Pour redémarrer le lecteur et le point d'accès après un changement.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  spotify-cache:
+  spotify-state:
