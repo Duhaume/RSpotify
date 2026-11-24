@@ -23,7 +23,7 @@ branchée (jack ou carte son USB). Si raspotify est déjà installé, retirez-le
 d'abord (`sudo apt remove raspotify`), sinon deux enceintes apparaissent dans Spotify.
 
 ```sh
-git clone https://github.com/<votre-compte>/RSpotify.git
+git clone https://github.com/Duhaume/RSpotify.git
 cd RSpotify/docker
 sudo ./install.sh
 ```
